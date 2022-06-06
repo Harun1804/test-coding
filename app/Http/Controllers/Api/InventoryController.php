@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Inbound;
 use App\Models\Inventory;
 use App\Models\Transaksi;
 use Illuminate\Http\Request;
@@ -90,31 +89,16 @@ class InventoryController extends Controller
             ]);
         }else{
             $transaksi = Transaksi::create([
-                'model_number'   => $request->model_number,
+                'model_number'   => $data['data']->model_number,
                 'quantity'       => $request->quantity,
                 'invoice'        => $request->invoice,
                 'price'          => $request->price,
             ]);
 
             $inventory = Inventory::where('model_number',$data['data']->model_number)->first();
-            if($inventory->current_quantity == 0){
-                $inventory->update([
-                    'orderer_produk' => $inventory->orderer_produk + $request->quantity,
-                ]);
-            }else{
-                $sisa = $inventory->current_quantity - $request->quantity;
-                if($sisa < 0){
-                    $inventory->update([
-                        'current_quantity'   => 0,
-                        'orderer_produk' => $inventory->current_quantity + abs($sisa),
-                    ]);
-                }else{
-                    $inventory->update([
-                        'current_quantity'   => $sisa,
-                        'orderer_produk' => $inventory->orderer_produk + $sisa,
-                    ]);
-                }
-            }
+            $inventory->update([
+                'orderer_produk' => $inventory->orderer_produk + $request->quantity,
+            ]);
 
             return response()->json([
                 'status'    => 'success',
@@ -132,8 +116,13 @@ class InventoryController extends Controller
                 'data'      => 'Model Number Not Found'
             ]);
         }else{
+            $transaksi = Transaksi::where('model_number',$data['data']->model_number)->where('invoice','!=',null)->first();
+            if($transaksi){
+                $transaksi->delete();
+            }
+
             $transaksi = Transaksi::create([
-                'model_number'   => $request->model_number,
+                'model_number'   => $data['data']->model_number,
                 'quantity'       => $request->quantity,
                 'price'          => $request->price,
             ]);
@@ -148,12 +137,12 @@ class InventoryController extends Controller
                 if($sisa < 0){
                     $inventory->update([
                         'orderer_produk'   => 0,
-                        'current_quantity' => $inventory->current_quantity + abs($sisa),
+                        'current_quantity' => $inventory->current_quantity + $request->quantity,
                     ]);
                 }else{
                     $inventory->update([
                         'orderer_produk'   => $sisa,
-                        'current_quantity' => $inventory->current_quantity + $sisa,
+                        'current_quantity' => $inventory->current_quantity + $request->quantity,
                     ]);
                 }
             }
